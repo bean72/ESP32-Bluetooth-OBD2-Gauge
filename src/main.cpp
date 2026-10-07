@@ -55,7 +55,7 @@ Preferences pref;         //create preference
 #define LED_BLUE_PIN 17
 #define LDR_PIN 34       //LDR sensor
 #define BUZZER_PIN 26    //speaker
-#define SELECTOR_PIN 27  //push button
+#define SELECTOR_PIN 32  //push button
 // setting PWM properties
 #define backlightChannel 0
 #define buzzerChannel 2
@@ -283,6 +283,8 @@ void setup() {
   pinMode(LED_RED_PIN, OUTPUT);         //red
   pinMode(LED_GREEN_PIN, OUTPUT);       //green
   pinMode(LED_BLUE_PIN, OUTPUT);        //blue
+  pinMode(TFT_BL, OUTPUT);
+  digitalWrite(TFT_BL, HIGH);        
   digitalWrite(LED_RED_PIN, LOW);       //on
   digitalWrite(LED_GREEN_PIN, HIGH);    //off
   digitalWrite(LED_BLUE_PIN, HIGH);     //off
