@@ -18,179 +18,149 @@ String ByteArraytoString(esp_bd_addr_t bt_address) {
 }
 /*=======================*/
 
-void scanBTdevice() {
-  digitalWrite(LED_BLUE_PIN, LOW);
-  Serial.println("\nScanning for Bluetooth devices...");
-  Terminal("Scanning for Bluetooth devices...", 0, 48, 320, 191);
+void scanBTdevice()
+{
+    digitalWrite(LED_BLUE_PIN, LOW);
 
-  btDeviceCount = 0;
+    Serial.println("\nScanning for Bluetooth devices...");
 
-  // Clear previous scan results
-  for (uint8_t i = 0; i < 8; i++) {
-    deviceName[i] = "";
-    deviceAddr[i] = "";
-  }
+    btDeviceCount = 0;
 
-  if (BTSerial.discoverAsync([](BTAdvertisedDevice* pDevice) {
+    for (uint8_t i = 0; i < 8; i++) {
+        deviceName[i] = "";
+        deviceAddr[i] = "";
+    }
 
-      // Don't overflow our arrays
-      if (btDeviceCount >= 8) return;
+    if (BTSerial.discoverAsync([](BTAdvertisedDevice* pDevice) {
 
-      deviceName[btDeviceCount] = pDevice->getName().c_str();
-      deviceAddr[btDeviceCount] = pDevice->getAddress().toString().c_str();
+        if (btDeviceCount >= 8)
+            return;
 
-      Serial.printf(
-        "Found device %u: %s [%s]\n",
-        btDeviceCount + 1,
-        deviceName[btDeviceCount].length()
-          ? deviceName[btDeviceCount].c_str()
-          : "<unknown>",
-        deviceAddr[btDeviceCount].c_str()
-      );
+        String addr = pDevice->getAddress().toString().c_str();
 
-      btDeviceCount++;
+        // Ignore duplicates
+        for (uint8_t i = 0; i < btDeviceCount; i++) {
+            if (deviceAddr[i] == addr)
+                return;
+        }
+
+        deviceName[btDeviceCount] = pDevice->getName().c_str();
+        deviceAddr[btDeviceCount] = addr;
+
+        Serial.printf(
+            "Found device %u: %s [%s]\n",
+            btDeviceCount + 1,
+            deviceName[btDeviceCount].length()
+                ? deviceName[btDeviceCount].c_str()
+                : "<unknown>",
+            deviceAddr[btDeviceCount].c_str()
+        );
+
+        btDeviceCount++;
+
     })) {
 
-    delay(BT_DISCOVER_TIME);
-    BTSerial.discoverAsyncStop();
-    digitalWrite(LED_BLUE_PIN, HIGH);
-    delay(500);
+        delay(BT_DISCOVER_TIME);
+        BTSerial.discoverAsyncStop();
 
-  } else {
-    Serial.println("Bluetooth discovery failed.");
-    digitalWrite(LED_BLUE_PIN, HIGH);
-    return;
-  }
-
-  Serial.printf("\nFound %u Bluetooth device(s):\n", btDeviceCount);
-
-  for (uint8_t i = 0; i < btDeviceCount; i++) {
-    Serial.printf(
-      "  %u: %-20s %s\n",
-      i + 1,
-      deviceName[i].length()
-        ? deviceName[i].c_str()
-        : "<unknown>",
-      deviceAddr[i].c_str()
-    );
-  }
-
-  if (btDeviceCount == 0) {
-    Serial.println("No Bluetooth devices found.");
-    Terminal("No Bluetooth devices found!", 0, 48, 320, 191);
-    foundOBD2 = false;
-    return;
-  }
-
-  Serial.println();
-  Serial.println("Enter device number in Serial Monitor and press Enter:");
-
-  // Discard anything already waiting
-  while (Serial.available())
-    Serial.read();
-
-  int selection = -1;
-
-  while (selection < 1 || selection > btDeviceCount) {
-    if (Serial.available()) {
-      String input = Serial.readStringUntil('\n');
-      input.trim();
-
-      selection = input.toInt();
-
-      if (selection < 1 || selection > btDeviceCount) {
-        Serial.printf(
-          "Invalid selection. Enter 1-%u:\n",
-          btDeviceCount
-        );
-        selection = -1;
-      }
-    }
-
-    delay(10);
-  }
-
-  uint8_t selected = selection - 1;
-
-  Serial.printf(
-    "\nSelected: %s [%s]\n",
-    deviceName[selected].length()
-      ? deviceName[selected].c_str()
-      : "<unknown>",
-    deviceAddr[selected].c_str()
-  );
-
-  // Convert MAC string into client_addr[]
-  String str = deviceAddr[selected];
-
-  for (uint8_t i = 0; i < ESP_BD_ADDR_LEN; i++) {
-    int separator = str.indexOf(':');
-
-    String byteString;
-
-    if (separator == -1) {
-      byteString = str;
     } else {
-      byteString = str.substring(0, separator);
-      str = str.substring(separator + 1);
+        Serial.println("Bluetooth discovery failed.");
     }
 
-    client_addr[i] = strtol(byteString.c_str(), nullptr, 16);
-  }
+    digitalWrite(LED_BLUE_PIN, HIGH);
 
+    Serial.printf(
+        "Bluetooth scan complete: %u device(s)\n",
+        btDeviceCount
+    );
+}
 
+bool connectBTdevice(uint8_t selected)
+{
+    if (selected >= btDeviceCount)
+        return false;
 
-  String txt =
-    "Connecting to " +
-    deviceAddr[selected];
+    String str = deviceAddr[selected];
 
-  Terminal(txt, 0, 48, 320, 191);
-  Serial.println(txt);
+    Serial.printf(
+        "\nSelected: %s [%s]\n",
+        deviceName[selected].length()
+            ? deviceName[selected].c_str()
+            : "<unknown>",
+        deviceAddr[selected].c_str()
+    );
 
-  BTSerial.connect(client_addr, 0, sec_mask, role);
+    // Convert xx:xx:xx:xx:xx:xx to esp_bd_addr_t
+    for (uint8_t i = 0; i < ESP_BD_ADDR_LEN; i++) {
 
-  uint8_t tries = 0;
+        int separator = str.indexOf(':');
+        String byteString;
 
-  while (!BTSerial.connected(1000) && tries < 10) {
-    Serial.print(".");
-    tries++;
-  }
+        if (separator == -1) {
+            byteString = str;
+        } else {
+            byteString = str.substring(0, separator);
+            str = str.substring(separator + 1);
+        }
 
-  Serial.println();
+        client_addr[i] =
+            strtol(byteString.c_str(), nullptr, 16);
+    }
 
-  if (BTSerial.connected()) {
-      Serial.println("Connected Successfully!");
-      Terminal("Connected Successfully!", 0, 48, 320, 191);
+    Serial.printf(
+        "Connecting to %s...\n",
+        deviceAddr[selected].c_str()
+    );
 
-      // Only remember devices that actually accepted an SPP connection
-      pref.putBytes(
-          "recent_client",
-          client_addr,
-          sizeof(client_addr)
-      );
+    BTSerial.connect(
+        client_addr,
+        0,
+        sec_mask,
+        role
+    );
 
-      memcpy(
-          recent_client_addr,
-          client_addr,
-          sizeof(client_addr)
-      );
+    uint8_t tries = 0;
 
-      Serial.printf(
-          "Saved adapter MAC: %s\n",
-          ByteArraytoString(client_addr).c_str()
-      );
+    while (!BTSerial.connected(1000) && tries < 10) {
+        Serial.print(".");
+        tries++;
+    }
 
-      foundOBD2 = true;
-      prompt = true;
+    Serial.println();
 
-      digitalWrite(LED_GREEN_PIN, LOW);
-  } else {
-    Serial.println("Connection failed.");
-    Terminal("Connection failed!", 0, 48, 320, 191);
+    if (!BTSerial.connected()) {
+        Serial.println("Connection failed.");
+        BTSerial.disconnect();
+        foundOBD2 = false;
+        return false;
+    }
 
-    BTSerial.disconnect();
-    foundOBD2 = false;
-  }
+    Serial.println("Connected Successfully!");
+
+    // Save only successful SPP devices
+    pref.putBytes(
+        "recent_client",
+        client_addr,
+        sizeof(client_addr)
+    );
+
+    memcpy(
+        recent_client_addr,
+        client_addr,
+        sizeof(client_addr)
+    );
+
+    Serial.printf(
+        "Saved adapter MAC: %s\n",
+        ByteArraytoString(client_addr).c_str()
+    );
+
+    foundOBD2 = true;
+    prompt = true;
+
+    digitalWrite(LED_GREEN_PIN, LOW);
+
+    return true;
 }
 
 //---------------------------

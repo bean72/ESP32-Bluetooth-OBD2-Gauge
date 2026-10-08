@@ -270,6 +270,7 @@ void checkGenuine() {                          //check if genuine obd2 gauge - m
 //---- Include Header File --------------------
 //#include "image.h"
 #include "bluetooth.h"
+#include "bluetooth_ui.h"
 #include "meter.h"
 #include "config.h"
 
@@ -361,6 +362,7 @@ recent_client_addr : {0x00,0x00,0x00,0x00,0x00,0x00} array of bytes[6]
   for (uint8_t i = 0; i < maxpidIndex; i++) {  //read warning value from pid name if not found load from default
     warningValue[i] = pref.getString(pidConfig[i][0].c_str(), pidConfig[i][8]);
   }
+
   size_t recentClientLength = pref.getBytesLength("recent_client");
 
   if (recentClientLength == sizeof(recent_client_addr)) {
@@ -382,6 +384,63 @@ recent_client_addr : {0x00,0x00,0x00,0x00,0x00,0x00} array of bytes[6]
     Serial.println(F("Bluetooth..OK"));
     Terminal("Bluetooth..OK", 0, 48, 320, 191);
   }
+
+  scanBTdevice();
+
+  while (!foundOBD2) {
+
+      int selectedDevice = bluetoothSelector();
+
+      tft.fillScreen(TFT_BLACK);
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+
+      tft.drawCentreString(
+          "Connecting...",
+          240,
+          125,
+          4
+      );
+
+      String displayName =
+          deviceName[selectedDevice].length()
+              ? deviceName[selectedDevice]
+              : "Unknown device";
+
+      tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+
+      tft.drawCentreString(
+          displayName,
+          240,
+          170,
+          2
+      );
+
+      if (!connectBTdevice(selectedDevice)) {
+
+          tft.fillScreen(TFT_BLACK);
+
+          tft.setTextColor(TFT_RED, TFT_BLACK);
+          tft.drawCentreString(
+              "Connection failed",
+              240,
+              115,
+              4
+          );
+
+          tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+          tft.drawCentreString(
+              "Returning to device list...",
+              240,
+              165,
+              2
+          );
+
+          delay(2000);
+
+          drawBluetoothSelector(0);
+      }
+  }
+
   runtime = millis();
 #ifdef SKIP_CONNECTION
   foundOBD2 = true;

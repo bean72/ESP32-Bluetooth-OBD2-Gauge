@@ -245,7 +245,8 @@
  C:/Users/jeff.clarke/.platformio/packages/framework-arduinoespressif32/libraries/SD/src/SD.h \
  C:/Users/jeff.clarke/.platformio/packages/framework-arduinoespressif32/libraries/SD/src/sd_defines.h \
  .pio/libdeps/esp32-obd-gauge/JPEGDecoder/src/picojpeg.h \
- src/touchscreen.h src/bluetooth.h src/meter.h src/config.h \
+ src/touchscreen.h src/bluetooth.h src/bluetooth_ui.h src/meter.h \
+ src/config.h \
  C:/Users/jeff.clarke/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/esp_system/include/esp_task_wdt.h \
  src/music.h src/nes_audio.h src/firmware_update.h \
  C:/Users/jeff.clarke/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/app_update/include/esp_ota_ops.h \
