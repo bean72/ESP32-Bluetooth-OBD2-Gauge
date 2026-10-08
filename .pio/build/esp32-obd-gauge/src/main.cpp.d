@@ -320,4 +320,4 @@
  C:/Users/jeff.clarke/.platformio/packages/framework-arduinoespressif32/tools/sdk/esp32/include/nghttp/port/include/http_parser.h \
  C:/Users/jeff.clarke/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src/Uri.h \
  C:/Users/jeff.clarke/.platformio/packages/framework-arduinoespressif32/libraries/WebServer/src/detail/RequestHandler.h \
- src/elm327.h
+ src/elm327.h src/dashboard.h src/dashboard_ui.h

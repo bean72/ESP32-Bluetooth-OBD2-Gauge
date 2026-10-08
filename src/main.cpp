@@ -273,6 +273,8 @@ void checkGenuine() {                          //check if genuine obd2 gauge - m
 #include "bluetooth_ui.h"
 #include "meter.h"
 #include "config.h"
+#include "dashboard.h"
+#include "dashboard_ui.h"
 
 //----SET UP -----------------------------------
 void setup() {
@@ -317,6 +319,22 @@ void setup() {
 
   touch_calibrate();  //hold button at start to calibrate touch
   //testTouch();//test touchscreen
+
+  // ============================================
+  // TEMPORARY DASHBOARD TEST
+  // Remove after interface validation
+  // ============================================
+
+  Serial.println("Starting dashboard test");
+
+  drawDashboard();
+
+  while (true) {
+      dashboardTouchTest();
+      delay(20);
+  }
+
+  // ============================================
 
   tft.setSwapBytes(true);  //to display correct image color
   show_spiffs_jpeg_image("/vaandcob.jpg", 0, 0);// display logo image
@@ -385,92 +403,90 @@ recent_client_addr : {0x00,0x00,0x00,0x00,0x00,0x00} array of bytes[6]
     Terminal("Bluetooth..OK", 0, 48, 320, 191);
   }
 
-  scanBTdevice();
 
-  while (!foundOBD2) {
-
-      int selectedDevice = bluetoothSelector();
-
-      tft.fillScreen(TFT_BLACK);
-      tft.setTextColor(TFT_WHITE, TFT_BLACK);
-
-      tft.drawCentreString(
-          "Connecting...",
-          240,
-          125,
-          4
-      );
-
-      String displayName =
-          deviceName[selectedDevice].length()
-              ? deviceName[selectedDevice]
-              : "Unknown device";
-
-      tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-
-      tft.drawCentreString(
-          displayName,
-          240,
-          170,
-          2
-      );
-
-      if (!connectBTdevice(selectedDevice)) {
-
-          tft.fillScreen(TFT_BLACK);
-
-          tft.setTextColor(TFT_RED, TFT_BLACK);
-          tft.drawCentreString(
-              "Connection failed",
-              240,
-              115,
-              4
-          );
-
-          tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
-          tft.drawCentreString(
-              "Returning to device list...",
-              240,
-              165,
-              2
-          );
-
-          delay(2000);
-
-          drawBluetoothSelector(0);
-      }
-  }
 
   runtime = millis();
 #ifdef SKIP_CONNECTION
   foundOBD2 = true;
 #endif
 
-  //Connect to ELM327
-  if (recentClientLength == sizeof(recent_client_addr)) {
-    Serial.printf(
-      "Trying saved OBD adapter: %s\n",
-      ByteArraytoString(recent_client_addr).c_str()
-    );
+  // --------------------------------------------------
+  // Bluetooth / ELM327 connection
+  // --------------------------------------------------
 
-    connectLastOBDII();
+  // Try previously saved adapter first
+  if (recentClientLength == sizeof(recent_client_addr)) {
+
+      Serial.printf(
+          "Trying saved OBD adapter: %s\n",
+          ByteArraytoString(recent_client_addr).c_str()
+      );
+
+      connectLastOBDII();
+
   } else {
-    Serial.println("No saved OBD adapter.");
+
+      Serial.println("No saved OBD adapter.");
   }
-  while (!foundOBD2) {  //not success try scan and connect another OBD2
-    scanBTdevice();
-    autoDim();  //auto backlight handle
-    //checkCPUTemp(); //check temp never work if BT or WIFI not connected
-    if (digitalRead(SELECTOR_PIN) == LOW) {  //button pressed
-      if (!press) {
-        press = true;                          //set flag
-        holdtime = millis();                   //set timer
-      } else if (holdtime - millis() > 500) {  //press once and longer
-        configMenu();                          //open config menu
-        press = false;                         //reset flag
-      }                                        //else if holdtimer > 30000
-      delay(200);                              //delay avoid bounce
-    }
+
+  // If saved adapter failed, show touchscreen selector
+  if (!foundOBD2) {
+
+      scanBTdevice();
+
+      while (!foundOBD2) {
+
+          int selectedDevice = bluetoothSelector();
+
+          tft.fillScreen(TFT_BLACK);
+          tft.setTextColor(TFT_WHITE, TFT_BLACK);
+
+          tft.drawCentreString(
+              "Connecting...",
+              240,
+              125,
+              4
+          );
+
+          String displayName =
+              deviceName[selectedDevice].length()
+                  ? deviceName[selectedDevice]
+                  : "Unknown device";
+
+          tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+
+          tft.drawCentreString(
+              displayName,
+              240,
+              170,
+              2
+          );
+
+          if (!connectBTdevice(selectedDevice)) {
+
+              tft.fillScreen(TFT_BLACK);
+
+              tft.setTextColor(TFT_RED, TFT_BLACK);
+              tft.drawCentreString(
+                  "Connection failed",
+                  240,
+                  115,
+                  4
+              );
+
+              tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+              tft.drawCentreString(
+                  "Returning to device list...",
+                  240,
+                  165,
+                  2
+              );
+
+              delay(2000);
+
+              drawBluetoothSelector(0);
+          }
+      }
   }
 
   //Initialize ELM327

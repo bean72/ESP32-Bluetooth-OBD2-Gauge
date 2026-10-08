@@ -329,7 +329,7 @@ void connectLastOBDII() {
     digitalWrite(LED_BLUE_PIN,blink);//blue led offset
     try_count++;
   }
-  if (try_count == 3) {//cannot connect
+  if (!BTSerial.connected()) {//cannot connect
     Terminal("OBDII Adaptor not found!",0,48,320,191);
     Serial.println(F("OBDII Adaptor not found!"));
     BTSerial.disconnect();
