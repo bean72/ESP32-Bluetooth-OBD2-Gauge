@@ -361,7 +361,15 @@ recent_client_addr : {0x00,0x00,0x00,0x00,0x00,0x00} array of bytes[6]
   for (uint8_t i = 0; i < maxpidIndex; i++) {  //read warning value from pid name if not found load from default
     warningValue[i] = pref.getString(pidConfig[i][0].c_str(), pidConfig[i][8]);
   }
-  pref.getBytes("recent_client", recent_client_addr, pref.getBytesLength("recent_client"));  //read last bt address
+  size_t recentClientLength = pref.getBytesLength("recent_client");
+
+  if (recentClientLength == sizeof(recent_client_addr)) {
+    pref.getBytes(
+      "recent_client",
+      recent_client_addr,
+      sizeof(recent_client_addr)
+    );
+  }
   ecu_off_volt = pref.getFloat("ecu_off_volt", factoryECUOff);                               //read ecu 0ff voltage
 
 
@@ -380,7 +388,16 @@ recent_client_addr : {0x00,0x00,0x00,0x00,0x00,0x00} array of bytes[6]
 #endif
 
   //Connect to ELM327
-  connectLastOBDII();   //try connect last BT
+  if (recentClientLength == sizeof(recent_client_addr)) {
+    Serial.printf(
+      "Trying saved OBD adapter: %s\n",
+      ByteArraytoString(recent_client_addr).c_str()
+    );
+
+    connectLastOBDII();
+  } else {
+    Serial.println("No saved OBD adapter.");
+  }
   while (!foundOBD2) {  //not success try scan and connect another OBD2
     scanBTdevice();
     autoDim();  //auto backlight handle
