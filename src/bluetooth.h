@@ -75,6 +75,85 @@ void scanBTdevice()
     );
 }
 
+bool validateELM327()
+{
+    Serial.println("Testing ELM327 interface...");
+
+    // Clear anything already waiting
+    while (BTSerial.available()) {
+        BTSerial.read();
+    }
+
+    // Reset adapter
+    BTSerial.print("ATZ\r");
+
+    String response = "";
+    unsigned long start = millis();
+
+    while (millis() - start < 4000) {
+
+        while (BTSerial.available()) {
+
+            char c = BTSerial.read();
+            response += c;
+
+            if (c == '>')
+                break;
+        }
+
+        if (response.indexOf('>') >= 0)
+            break;
+
+        delay(10);
+    }
+
+    Serial.println("ELM327 ATZ response:");
+    Serial.println(response);
+
+    if (response.indexOf('>') < 0) {
+        Serial.println("No valid ELM327 prompt received.");
+        return false;
+    }
+
+    // Ask adapter to identify itself
+    while (BTSerial.available()) {
+        BTSerial.read();
+    }
+
+    BTSerial.print("ATI\r");
+
+    response = "";
+    start = millis();
+
+    while (millis() - start < 2000) {
+
+        while (BTSerial.available()) {
+
+            char c = BTSerial.read();
+            response += c;
+
+            if (c == '>')
+                break;
+        }
+
+        if (response.indexOf('>') >= 0)
+            break;
+
+        delay(10);
+    }
+
+    Serial.println("ELM327 ATI response:");
+    Serial.println(response);
+
+    if (response.indexOf('>') < 0) {
+        Serial.println("ELM327 identification failed.");
+        return false;
+    }
+
+    Serial.println("ELM327 interface detected.");
+    return true;
+}
+
 bool connectBTdevice(uint8_t selected)
 {
     if (selected >= btDeviceCount)
@@ -135,7 +214,78 @@ bool connectBTdevice(uint8_t selected)
         return false;
     }
 
-    Serial.println("Connected Successfully!");
+    Serial.println("Bluetooth SPP connected.");
+
+    tft.fillScreen(TFT_BLACK);
+
+    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    tft.drawCentreString(
+        "Bluetooth Connected",
+        240,
+        105,
+        4
+    );
+
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawCentreString(
+        "Testing ELM327...",
+        240,
+        160,
+        2
+    );
+
+    if (!validateELM327()) {
+
+        Serial.println(
+            "Bluetooth connected, but device is not responding as an ELM327."
+        );
+
+        tft.fillScreen(TFT_BLACK);
+
+        tft.setTextColor(TFT_RED, TFT_BLACK);
+        tft.drawCentreString(
+            "ELM327 Not Responding",
+            240,
+            125,
+            4
+        );
+
+        tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+        tft.drawCentreString(
+            "Returning to device list...",
+            240,
+            180,
+            2
+        );
+
+        delay(3000);
+
+        BTSerial.disconnect();
+        foundOBD2 = false;
+
+        return false;
+    }
+
+    // ELM327 validation succeeded
+    tft.fillScreen(TFT_BLACK);
+
+    tft.setTextColor(TFT_GREEN, TFT_BLACK);
+    tft.drawCentreString(
+        "ELM327 Detected",
+        240,
+        125,
+        4
+    );
+
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.drawCentreString(
+        "Starting OBD...",
+        240,
+        175,
+        2
+    );
+
+    delay(1000);
 
     // Save only successful SPP devices
     pref.putBytes(
@@ -184,12 +334,94 @@ void connectLastOBDII() {
     Serial.println(F("OBDII Adaptor not found!"));
     BTSerial.disconnect();
     foundOBD2 = false;
-  } else {  
-    Terminal("Connected Successfully!",0,48,320,191);  
-    Serial.println(F("Connected Successfully!"));
-    prompt = true;
-    digitalWrite(LED_GREEN_PIN, LOW);//green led 
-    foundOBD2 = true;
+  } else {
+
+      Serial.println(F("Bluetooth SPP connected."));
+
+      tft.fillScreen(TFT_BLACK);
+
+      tft.setTextColor(TFT_GREEN, TFT_BLACK);
+      tft.drawCentreString(
+          "Bluetooth Connected",
+          240,
+          105,
+          4
+      );
+
+      tft.setTextColor(TFT_WHITE, TFT_BLACK);
+      tft.drawCentreString(
+          "Testing ELM327...",
+          240,
+          160,
+          2
+      );
+
+      if (!validateELM327()) {
+
+          Serial.println(
+              "Bluetooth connected, but device is not responding as an ELM327."
+          );
+
+          tft.fillScreen(TFT_BLACK);
+
+          tft.setTextColor(TFT_GREEN, TFT_BLACK);
+          tft.drawCentreString(
+              "Bluetooth Connected",
+              240,
+              90,
+              4
+          );
+
+          tft.setTextColor(TFT_RED, TFT_BLACK);
+          tft.drawCentreString(
+              "ELM327 Not Responding",
+              240,
+              145,
+              4
+          );
+
+          tft.setTextColor(TFT_LIGHTGREY, TFT_BLACK);
+          tft.drawCentreString(
+              "Returning to device list...",
+              240,
+              205,
+              2
+          );
+
+          delay(3000);
+
+          BTSerial.disconnect();
+          foundOBD2 = false;
+
+          return;
+      } else {
+
+          Serial.println(F("ELM327 Connected Successfully!"));
+
+          tft.fillScreen(TFT_BLACK);
+
+          tft.setTextColor(TFT_GREEN, TFT_BLACK);
+          tft.drawCentreString(
+              "ELM327 Detected",
+              240,
+              125,
+              4
+          );
+
+          tft.setTextColor(TFT_WHITE, TFT_BLACK);
+          tft.drawCentreString(
+              "Starting OBD...",
+              240,
+              175,
+              2
+          );
+
+          delay(1000);
+
+          prompt = true;
+          digitalWrite(LED_GREEN_PIN, LOW);
+          foundOBD2 = true;
+      }
   }
  
 }//connectLasbtOBDII
